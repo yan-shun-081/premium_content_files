@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archive PDF Finder</title>
+<style>
+body {
+  font-family: "Poppins", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+}
+#status {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  word-break: break-word;
+}
+</style>
+</head>
+<body>
+
+<h2>🧩 Archive.org → PDF Link Converter</h2>
+<div id="status">⏳ Waiting for message from parent...</div>
+
+<script>
+const statusBox = document.getElementById("status");
+
+// ✅ Listen for message from parent (premium_content_uploader_form.html)
+window.addEventListener("message", async (event) => {
+  const data = event.data;
+  
+  if (!data || !data.archive_content_url) {
+    statusBox.textContent = "❌ No valid archive_content_url received.";
+    return;
+  }
+
+  const archiveUrl = data.archive_content_url.trim();
+  statusBox.textContent = `📥 Received URL:\n${archiveUrl}\n\nFetching metadata...`;
+
+  // Validate URL
+  if (!archiveUrl.includes("archive.org/details/")) {
+    statusBox.textContent = "❌ Invalid URL. It must contain archive.org/details/";
+    window.parent.postMessage({ error: "Invalid archive.org URL" }, "*");
+    return;
+  }
+
+  try {
+    // Extract ID
+    const id = archiveUrl.split("/details/")[1].split("/")[0];
+    const metaUrl = `https://archive.org/metadata/${id}`;
+    
+    // Fetch metadata
+    const res = await fetch(metaUrl);
+    if (!res.ok) throw new Error("Metadata not found");
+    
+    const metadata = await res.json();
+    const base = `https://archive.org/download/${id}/`;
+
+    // Find the first .pdf file
+    const pdfFile = metadata.files.find(f => f.name.toLowerCase().endsWith(".pdf"));
+    
+    if (pdfFile) {
+      const pdfLink = `${base}${encodeURIComponent(pdfFile.name)}`;
+      statusBox.textContent = `✅ Found PDF Link:\n${pdfLink}`;
+
+      // ✅ Send result back to parent using correct key (pdf_url)
+      window.parent.postMessage({ pdf_url: pdfLink }, "*");
+    } else {
+      statusBox.textContent = "❌ No PDF found in this archive item.";
+      window.parent.postMessage({ error: "No PDF found" }, "*");
+    }
+
+  } catch (err) {
+    statusBox.textContent = "❌ Error: " + err.message;
+    window.parent.postMessage({ error: err.message }, "*");
+  }
+});
+</script>
+
+</body>
+</html>

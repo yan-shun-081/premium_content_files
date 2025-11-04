@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archive Image Link Finder</title>
+<style>
+body {
+  font-family: "Poppins", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+}
+button {
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+#result {
+  margin-top: 15px;
+  background: #0f172a;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #93c5fd;
+  white-space: pre-wrap;
+}
+img {
+  margin-top: 15px;
+  max-width: 100%;
+  border-radius: 10px;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>🖼️ Archive.org Image Link Finder</h2>
+  <p>Receives an <code>archive.org/details/</code> URL, finds a JPG/JPEG file, and sends it back.</p>
+  
+  <input type="text" id="archiveInput" placeholder="Enter or wait for archive_image_url..." />
+  <button onclick="findImage()">Find Image</button>
+
+  <pre id="result">Waiting for input...</pre>
+  <img id="preview" alt="Preview Image">
+</div>
+
+<script>
+/* ✅ Listen for message from premium_content_uploader_form.html */
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.archive_image_url) {
+    const url = event.data.archive_image_url;
+    document.getElementById("archiveInput").value = url;
+    findImage(url);
+  }
+});
+
+/* ✅ Find JPEG/JPG image file in the archive metadata */
+async function findImage(manualUrl) {
+  const input = document.getElementById("archiveInput").value.trim() || manualUrl;
+  const result = document.getElementById("result");
+  const preview = document.getElementById("preview");
+
+  if (!input.includes("archive.org/details/")) {
+    result.textContent = "❌ Invalid URL. Must contain archive.org/details/";
+    return;
+  }
+
+  try {
+    result.textContent = "🔍 Searching for image link...";
+    const id = input.split("/details/")[1].split("/")[0];
+    const metaUrl = `https://archive.org/metadata/${id}`;
+    const res = await fetch(metaUrl);
+    if (!res.ok) throw new Error("Metadata not found");
+    const data = await res.json();
+
+    const base = `https://archive.org/download/${id}/`;
+    // ✅ Find the first JPEG/JPG file
+    const imgFile = data.files.find(f => f.name.toLowerCase().endsWith(".jpg") || f.name.toLowerCase().endsWith(".jpeg"));
+
+    if (imgFile) {
+      const imgLink = `${base}${encodeURIComponent(imgFile.name)}`;
+      result.textContent = `✅ Found Image:\n${imgLink}`;
+      preview.src = imgLink;
+      preview.style.display = "block";
+
+      // ✅ Send back to the parent page
+      window.parent.postMessage({ image_url: imgLink }, "*");
+    } else {
+      result.textContent = "❌ No JPG or JPEG found in this archive item.";
+      preview.style.display = "none";
+    }
+  } catch (err) {
+    result.textContent = "❌ Error: " + err.message;
+    preview.style.display = "none";
+  }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archive Video Converter</title>
+<style>
+  body {
+    font-family: "Poppins", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .card {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.4);
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    font-size: 15px;
+  }
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  video {
+    width: 100%;
+    border-radius: 10px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>🎬 Archive.org Video Converter</h2>
+  <p>Enter or receive an <code>archive.org/details/</code> URL and convert it into a playable video.</p>
+
+  <input type="text" id="archiveInput" placeholder="Enter or wait for archive.org/details/... URL" />
+  <button onclick="convertLink()">Convert & Preview</button>
+
+  <video id="preview" controls style="display:none;"></video>
+</div>
+
+<script>
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.archive_content_url) {
+    document.getElementById("archiveInput").value = event.data.archive_content_url;
+    convertLink(event.data.archive_content_url);
+  }
+});
+
+async function convertLink(manualUrl) {
+  const input = document.getElementById("archiveInput").value.trim() || manualUrl;
+  if (!input.includes("archive.org/details/")) {
+    alert("Please enter a valid archive.org/details/ URL");
+    return;
+  }
+
+  const id = input.split("/details/")[1].split("/")[0];
+  const metadataUrl = `https://archive.org/metadata/${id}`;
+
+  try {
+    const res = await fetch(metadataUrl);
+    if (!res.ok) throw new Error("Metadata not found");
+    const data = await res.json();
+
+    // Find best video file
+    const videoFile = data.files.find(f => /\.(mp4|webm|ogv|mov|mkv|avi)$/i.test(f.name));
+
+    if (!videoFile) {
+      alert("No playable video file found for this item.");
+      return;
+    }
+
+    const playableUrl = `https://archive.org/download/${id}/${encodeURIComponent(videoFile.name)}`;
+
+    // Show preview
+    const video = document.getElementById("preview");
+    video.src = playableUrl;
+    video.style.display = "block";
+
+    // Send back to parent page
+    window.parent.postMessage({ playable_url: playableUrl }, "*");
+
+  } catch (err) {
+    console.error(err);
+    alert("Error fetching video data. Please check the URL or network.");
+  }
+}
+</script>
+
+</body>
+</html>

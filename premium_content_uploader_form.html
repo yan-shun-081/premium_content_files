@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Premium Archive Uploader</title>
+<style>
+body {
+  font-family: "Poppins", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding: 20px;
+}
+form {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+}
+button {
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+#status {
+  margin-top: 15px;
+  background: #0f172a;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #93c5fd;
+  white-space: pre-wrap;
+}
+iframe {
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<h2>📤 Premium Archive Metadata Uploader</h2>
+
+<form id="uploadForm">
+  <label>Type:</label>
+  <select id="type" required>
+    <option value="">-- Select Type --</option>
+    <option value="video">Video</option>
+    <option value="pdf">PDF</option>
+  </select>
+
+  <label>Archive Content URL:</label>
+  <input type="text" id="archiveContentUrl" placeholder="https://archive.org/details/..." required>
+
+  <label>Archive Image URL:</label>
+  <input type="text" id="archiveImageUrl" placeholder="https://archive.org/details/..." required>
+
+  <label>Title:</label>
+  <input type="text" id="title" placeholder="Enter Title" required>
+
+  <label>Username:</label>
+  <input type="text" id="username" placeholder="Enter Username" required>
+
+  <label>Phone Number:</label>
+  <input type="tel" id="phone" placeholder="Enter Phone Number" required>
+
+  <button type="submit">Post</button>
+</form>
+
+<pre id="status">Waiting for input...</pre>
+
+<!-- Hidden converter iframes -->
+<iframe id="videoFrame" src="archive_content_url_converting_to_mp4.html"></iframe>
+<iframe id="pdfFrame" src="archive_content_url_converting_to_pdf.html"></iframe>
+<iframe id="imageFrame" src="archive_image_url_converting_to_jpeg.html"></iframe>
+
+<script>
+const backendUrl = "https://premium_videos_metadata_backend.ajaia-backend.workers.dev/upload";
+
+const state = {
+  type: "",
+  archive_content_url: "",
+  archive_image_url: "",
+  title: "",
+  username: "",
+  phone_number: "",
+  converted_content_url: "",
+  converted_image_url: ""
+};
+
+document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("status");
+  status.textContent = "⏳ Processing...";
+
+  // Collect form data
+  state.type = document.getElementById("type").value;
+  state.archive_content_url = document.getElementById("archiveContentUrl").value.trim();
+  state.archive_image_url = document.getElementById("archiveImageUrl").value.trim();
+  state.title = document.getElementById("title").value.trim();
+  state.username = document.getElementById("username").value.trim();
+  state.phone_number = document.getElementById("phone").value.trim();
+
+  // Validate
+  if (!state.type || !state.archive_content_url || !state.archive_image_url || !state.title || !state.username || !state.phone_number) {
+    status.textContent = "❌ Please fill all fields.";
+    return;
+  }
+
+  // Send to respective converter
+  if (state.type === "video") {
+    document.getElementById("videoFrame").contentWindow.postMessage({ archive_content_url: state.archive_content_url }, "*");
+  } else if (state.type === "pdf") {
+    document.getElementById("pdfFrame").contentWindow.postMessage({ archive_content_url: state.archive_content_url }, "*");
+  }
+
+  // Send image URL for conversion
+  document.getElementById("imageFrame").contentWindow.postMessage({ archive_image_url: state.archive_image_url }, "*");
+
+  status.textContent = "🔄 Converting links... Please wait...";
+});
+
+/* ✅ Listen for messages from converter pages */
+window.addEventListener("message", async (event) => {
+  const data = event.data;
+  if (data.playable_url) {
+    state.converted_content_url = data.playable_url;
+  }
+  if (data.pdf_url) {
+    state.converted_content_url = data.pdf_url;
+  }
+  if (data.image_url) {
+    state.converted_image_url = data.image_url;
+  }
+
+  // Proceed only if both conversions are done
+  if (state.converted_content_url && state.converted_image_url) {
+    await sendToBackend();
+  }
+});
+
+/* ✅ Send all final data to backend */
+async function sendToBackend() {
+  const status = document.getElementById("status");
+  try {
+    const payload = {
+      type: state.type,
+      archive_content_url: state.converted_content_url,
+      archive_image_url: state.converted_image_url,
+      title: state.title,
+      username: state.username,
+      phone_number: state.phone_number
+    };
+
+    status.textContent = "🚀 Sending data to backend...";
+
+    const res = await fetch(backendUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      status.textContent = "✅ Success: " + JSON.stringify(result, null, 2);
+    } else {
+      status.textContent = "❌ Failed: " + JSON.stringify(result, null, 2);
+    }
+
+    // Reset converted state
+    state.converted_content_url = "";
+    state.converted_image_url = "";
+  } catch (err) {
+    status.textContent = "❌ Error: " + err.message;
+  }
+}
+</script>
+
+</body>
+</html>
