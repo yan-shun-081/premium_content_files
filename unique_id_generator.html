@@ -15,10 +15,21 @@
       localStorage.setItem('unique_id', id);
     }
 
-    // Step 2: Listen for messages from parent (index.html)
+    // Step 2: Listen for messages from parent (index.html or other pages)
     window.addEventListener('message', (event) => {
+      // ✅ Original feature: send ID when requested
       if (event.data && event.data.action === 'get_unique_id') {
         event.source.postMessage({ unique_id: id }, '*');
+      }
+
+      // ✅ NEW ADDITION:
+      // If message comes with "unique_id" (from premim_content_my_subscription_displaying_videos.html)
+      // and we already have one stored, send the stored one back
+      if (event.data && event.data.unique_id) {
+        const storedId = localStorage.getItem('unique_id');
+        if (storedId) {
+          event.source.postMessage({ unique_id: storedId }, '*');
+        }
       }
     });
   </script>

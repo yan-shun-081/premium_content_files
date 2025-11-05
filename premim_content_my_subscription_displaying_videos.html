@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Subscription Content</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #20232a;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-size: 1.2em;
+    }
+
+    .video-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+
+    .video-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .video-card:hover {
+      transform: scale(1.03);
+    }
+
+    .video-card img {
+      width: 100%;
+      height: 130px;
+      object-fit: cover;
+    }
+
+    .video-info {
+      padding: 10px;
+    }
+
+    .video-info h4 {
+      margin: 5px 0;
+      color: #333;
+      font-size: 1em;
+    }
+
+    .video-info p {
+      margin: 0;
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 100px;
+      font-size: 1.2em;
+      color: #555;
+    }
+
+    iframe {
+      width: 100%;
+      height: 80vh;
+      border: none;
+    }
+
+    .back-btn {
+      display: block;
+      margin: 20px auto;
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .back-btn:hover {
+      background: #0056b3;
+    }
+
+    /* hidden iframe for unique_id communication */
+    #uid-frame {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>My Subscription Content</header>
+
+  <div id="videoContainer" class="video-list"></div>
+  <div id="message" class="message"></div>
+
+  <div id="playerContainer" style="display:none;">
+    <button class="back-btn" onclick="closePlayer()">⬅ Back to Videos</button>
+    <iframe id="videoPlayer" allowfullscreen></iframe>
+  </div>
+
+  <!-- Hidden iframe to communicate with unique_id_generator.html -->
+  <iframe id="uid-frame" src="unique_id_generator.html"></iframe>
+
+  <script>
+    const premiumUsers = JSON.parse(localStorage.getItem("type1_json")) || [];
+    const archiveVideos = JSON.parse(localStorage.getItem("type2_json")) || [];
+
+    const videoContainer = document.getElementById("videoContainer");
+    const message = document.getElementById("message");
+    const playerContainer = document.getElementById("playerContainer");
+    const videoPlayer = document.getElementById("videoPlayer");
+    const iframe = document.getElementById("uid-frame");
+
+    // ✅ Function to display videos in queue
+    function displayVideos(videos) {
+      videoContainer.innerHTML = "";
+      message.innerHTML = "";
+
+      videos.forEach(video => {
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <img src="${video.archive_image_url}" alt="${video.title}">
+          <div class="video-info">
+            <h4>${video.title}</h4>
+            <p><b>ID:</b> ${video.id}</p>
+            <p><b>User:</b> ${video.username}</p>
+          </div>
+        `;
+        card.addEventListener("click", () => openVideo(video.archive_content_url));
+        videoContainer.appendChild(card);
+      });
+    }
+
+    // ✅ Open the video inside app
+    function openVideo(url) {
+      videoContainer.style.display = "none";
+      playerContainer.style.display = "block";
+      videoPlayer.src = url;
+    }
+
+    // ✅ Close player
+    function closePlayer() {
+      playerContainer.style.display = "none";
+      videoContainer.style.display = "grid";
+      videoPlayer.src = "";
+    }
+
+    // ✅ Step 1: Ask unique_id_generator.html for unique_id
+    function requestUniqueId() {
+      iframe.contentWindow.postMessage({ action: "get_unique_id" }, "*");
+    }
+
+    // ✅ Step 2: Receive unique_id from unique_id_generator.html
+    window.addEventListener("message", function(event) {
+      if (event.data && event.data.unique_id) {
+        const receivedUniqueId = event.data.unique_id;
+        console.log("Received unique_id:", receivedUniqueId);
+        checkAccess(receivedUniqueId);
+      }
+    });
+
+    // ✅ Step 3: Compare and show videos
+    function checkAccess(receivedUniqueId) {
+      if (!receivedUniqueId) {
+        message.textContent = "Take subscription to view videos.";
+        return;
+      }
+
+      // Find if unique_id exists in premiumUsers
+      const matchedUser = premiumUsers.find(u => u.unique_id === receivedUniqueId);
+
+      if (matchedUser) {
+        // Show only videos where id matches content_id
+        const matchedVideos = archiveVideos.filter(
+          v => v.id === matchedUser.content_id
+        );
+
+        if (matchedVideos.length > 0) {
+          displayVideos(matchedVideos);
+        } else {
+          message.textContent = "No videos available for your subscription.";
+        }
+      } else {
+        message.textContent = "Take subscription to view videos.";
+      }
+    }
+
+    // ✅ Step 4: Send request to get unique_id when page loads
+    window.onload = () => {
+      requestUniqueId();
+    };
+  </script>
+</body>
+</html>

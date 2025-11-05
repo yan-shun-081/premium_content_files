@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Premium Access Portal</title>
   <style>
     body {
@@ -16,10 +16,12 @@
       height: 100vh;
       margin: 0;
     }
+
     h2 {
       color: #93c5fd;
       margin-bottom: 20px;
     }
+
     button {
       background: #2563eb;
       color: white;
@@ -29,10 +31,13 @@
       margin: 10px;
       cursor: pointer;
       font-size: 16px;
+      transition: background 0.3s;
     }
+
     button:hover {
       background: #1d4ed8;
     }
+
     .form-container {
       display: none;
       flex-direction: column;
@@ -44,6 +49,7 @@
       border-radius: 12px;
       box-shadow: 0 0 10px rgba(255,255,255,0.1);
     }
+
     input {
       width: 100%;
       padding: 10px;
@@ -54,6 +60,7 @@
       background: #334155;
       color: #f1f5f9;
     }
+
     #response {
       margin-top: 15px;
       font-size: 14px;
@@ -64,9 +71,11 @@
 <body>
 
   <h2>Choose an Option</h2>
+
   <div id="main-menu">
     <button onclick="openPay()">Pay</button>
     <button onclick="openRequest()">Request</button>
+    <button onclick="openView()">View</button>
   </div>
 
   <div class="form-container" id="request-form">
@@ -84,15 +93,23 @@
   <iframe id="uid-frame" src="unique_id_generator.html" style="display:none;"></iframe>
 
   <script>
+    // ✅ Pay button → opens Razorpay page
     function openPay() {
       window.open("https://rzp.io/rzp/YjLsSFhq", "_blank");
     }
 
+    // ✅ Request button → show input form
     function openRequest() {
       document.getElementById("main-menu").style.display = "none";
       document.getElementById("request-form").style.display = "flex";
     }
 
+    // ✅ View button → open premium_content_displaying.html
+    function openView() {
+      window.location.href = "premium_content_displaying.html";
+    }
+
+    // ✅ Handle POST request to backend
     async function sendData() {
       const full_name = document.getElementById("full_name").value.trim();
       const email = document.getElementById("email").value.trim();
@@ -102,7 +119,6 @@
       const responseBox = document.getElementById("response");
       responseBox.textContent = "Processing...";
 
-      // Validate
       if (!full_name || !email || !phone_number || !payment_id || !content_id) {
         responseBox.textContent = "Please fill all fields.";
         return;

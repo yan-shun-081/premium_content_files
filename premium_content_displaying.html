@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premium Content App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #20232a;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+
+    .section-buttons {
+      display: flex;
+      justify-content: space-around;
+      background: #fff;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .section-buttons button {
+      background: #007bff;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.3s;
+    }
+
+    .section-buttons button:hover {
+      background: #0056b3;
+    }
+
+    .video-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+
+    .video-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .video-card:hover {
+      transform: scale(1.03);
+    }
+
+    .video-card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+    }
+
+    .video-info {
+      padding: 10px;
+    }
+
+    .video-info h4 {
+      margin: 5px 0;
+      font-size: 1em;
+      color: #333;
+    }
+
+    .video-info p {
+      margin: 0;
+      color: #666;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <header>Premium Content App</header>
+
+  <div class="section-buttons">
+    <button id="premiumSectionBtn">Premium Content</button>
+    <button id="subscriptionSectionBtn">My Subscription Content</button>
+  </div>
+
+  <div id="videoContainer" class="video-list">
+    <!-- Videos will appear here -->
+  </div>
+
+  <script>
+    const backendUrl = "https://premium_content_displaying_backend.ajaia-backend.workers.dev";
+
+    // Fetch JSONs from backend
+    async function fetchData() {
+      try {
+        const response = await fetch(backendUrl);
+        const data = await response.json();
+
+        // ✅ Access both arrays correctly
+        const type1 = data.premiumUsers || [];
+        const type2 = data.archiveVideos || [];
+
+        // Display the second type of JSON (YouTube-like view)
+        displayVideos(type2);
+
+        // Save both for later use
+        localStorage.setItem("type1_json", JSON.stringify(type1));
+        localStorage.setItem("type2_json", JSON.stringify(type2));
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+
+    // Display the archive video cards
+    function displayVideos(videos) {
+      const container = document.getElementById("videoContainer");
+      container.innerHTML = "";
+
+      videos.forEach(video => {
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <img src="${video.archive_image_url}" alt="${video.title}">
+          <div class="video-info">
+            <h4>${video.title}</h4>
+            <p><b>ID:</b> ${video.id}</p>
+            <p><b>User:</b> ${video.username}</p>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // When user clicks "My Subscription Content"
+    document.getElementById("subscriptionSectionBtn").addEventListener("click", () => {
+      window.location.href = "premim_content_my_subscription_displaying_videos.html";
+    });
+
+    // Optional: button for Premium Content section (you can add functionality later)
+    document.getElementById("premiumSectionBtn").addEventListener("click", () => {
+      alert("Premium Content section clicked! (You can customize this action.)");
+    });
+
+    // Fetch data when user opens the app
+    fetchData();
+  </script>
+</body>
+</html>
