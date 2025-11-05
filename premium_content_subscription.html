@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Access Portal</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h2 {
+      color: #93c5fd;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      margin: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .form-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 90%;
+      max-width: 400px;
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 8px;
+      outline: none;
+      background: #334155;
+      color: #f1f5f9;
+    }
+    #response {
+      margin-top: 15px;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Choose an Option</h2>
+  <div id="main-menu">
+    <button onclick="openPay()">Pay</button>
+    <button onclick="openRequest()">Request</button>
+  </div>
+
+  <div class="form-container" id="request-form">
+    <h3>Enter Details</h3>
+    <input type="text" id="full_name" placeholder="Full Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="tel" id="phone_number" placeholder="Phone Number" required>
+    <input type="text" id="payment_id" placeholder="Payment ID" required>
+    <input type="text" id="content_id" placeholder="Content ID" required>
+    <button onclick="sendData()">Post</button>
+    <div id="response"></div>
+  </div>
+
+  <!-- Hidden iframe for communication with unique_id_generator.html -->
+  <iframe id="uid-frame" src="unique_id_generator.html" style="display:none;"></iframe>
+
+  <script>
+    function openPay() {
+      window.open("https://rzp.io/rzp/YjLsSFhq", "_blank");
+    }
+
+    function openRequest() {
+      document.getElementById("main-menu").style.display = "none";
+      document.getElementById("request-form").style.display = "flex";
+    }
+
+    async function sendData() {
+      const full_name = document.getElementById("full_name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone_number = document.getElementById("phone_number").value.trim();
+      const payment_id = document.getElementById("payment_id").value.trim();
+      const content_id = document.getElementById("content_id").value.trim();
+      const responseBox = document.getElementById("response");
+      responseBox.textContent = "Processing...";
+
+      // Validate
+      if (!full_name || !email || !phone_number || !payment_id || !content_id) {
+        responseBox.textContent = "Please fill all fields.";
+        return;
+      }
+
+      // Step 1: Ask unique_id_generator.html for unique_id
+      const iframe = document.getElementById("uid-frame");
+      iframe.contentWindow.postMessage({ action: "get_unique_id" }, "*");
+
+      // Step 2: Wait for unique_id response
+      window.addEventListener("message", async function handleMessage(event) {
+        if (event.data && event.data.unique_id) {
+          const unique_id = event.data.unique_id;
+          window.removeEventListener("message", handleMessage);
+
+          // Step 3: Send metadata to backend
+          const metadata = {
+            full_name,
+            email,
+            phone_number,
+            payment_id,
+            content_id,
+            unique_id
+          };
+
+          try {
+            const res = await fetch("https://premium_content_users_backend.ajaia-backend.workers.dev", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(metadata)
+            });
+
+            const data = await res.json();
+            responseBox.textContent = data.message || JSON.stringify(data);
+          } catch (err) {
+            responseBox.textContent = "Error: " + err.message;
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

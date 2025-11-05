@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Unique ID Generator</title>
+</head>
+<body style="background:#0f172a;color:#e2e8f0;text-align:center;padding-top:50px;">
+  <h3>Unique ID Generator</h3>
+
+  <script>
+    // Step 1: Get or create the unique ID
+    let id = localStorage.getItem('unique_id');
+    if (!id) {
+      id = crypto.randomUUID(); // create new one if not exist
+      localStorage.setItem('unique_id', id);
+    }
+
+    // Step 2: Listen for messages from parent (index.html)
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.action === 'get_unique_id') {
+        event.source.postMessage({ unique_id: id }, '*');
+      }
+    });
+  </script>
+</body>
+</html>
