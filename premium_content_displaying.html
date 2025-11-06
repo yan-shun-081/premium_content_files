@@ -110,111 +110,96 @@
     <button id="subscriptionSectionBtn">My Subscription Content</button>
   </div>
 
-  <!-- ✅ Debug info panel -->
+  <!-- Debug info panel -->
   <div id="debugPanel">[Debug Log Started]</div>
 
   <div id="videoContainer" class="video-list">
     <!-- Videos will appear here -->
   </div>
 
-  <!-- ✅ Hidden iframe that runs unique_id_generator.html internally -->
+  <!-- Hidden iframe that runs unique_id_generator.html internally -->
   <iframe id="aid-frame" src="unique_id_generator.html"></iframe>
 
   <script>
     const backendUrl = "https://premium_content_displaying_backend.ajaia-backend.workers.dev";
-    let android_id = null; // global variable to store android id
+    let android_id = null;
 
     const debugPanel = document.getElementById("debugPanel");
-    function logDebug(message) {
-      console.log(message);
+
+    function logDebug(message, type = "log") {
+      console[type](message);
       const line = document.createElement("div");
       line.textContent = message;
       debugPanel.appendChild(line);
       debugPanel.scrollTop = debugPanel.scrollHeight;
     }
 
-    // ✅ Receive message from unique_id_generator.html
+    // Receive Android ID from iframe
     window.addEventListener("message", async (event) => {
       if (event.data && event.data.type === "ANDROID_ID") {
         android_id = event.data.id;
         logDebug("✅ Android ID received: " + android_id);
         localStorage.setItem("android_id", android_id);
 
-        // ✅ Send Android ID to backend
-        try {
-          logDebug("📡 Sending Android ID to backend...");
-          const response = await fetch(backendUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ android_id })
-          });
-
-          if (response.ok) {
-            logDebug("✅ Android ID successfully sent to backend!");
-          } else {
-            logDebug("⚠️ Backend responded with error status: " + response.status);
-          }
-        } catch (err) {
-          logDebug("❌ Error sending Android ID to backend: " + err.message);
-        }
-
-        // ✅ After sending ID, fetch content
-        fetchData();
+        // Send Android ID and fetch videos in one request
+        await sendAndroidIdAndFetchVideos(android_id);
       } else {
-        logDebug("⚠️ No ANDROID_ID message received or wrong data format.");
+        logDebug("⚠️ No ANDROID_ID message received or wrong format.", "warn");
       }
     });
 
-    // ✅ Send message to iframe to register and request Android ID
     function requestAndroidId() {
       const iframe = document.getElementById("aid-frame");
       if (iframe && iframe.contentWindow) {
-        // 🔹 Added: Register with the bridge
         iframe.contentWindow.postMessage({ type: "REGISTER_ANDROID_BRIDGE" }, "*");
         iframe.contentWindow.postMessage({ type: "REQUEST_ANDROID_ID" }, "*");
-
-        logDebug("📩 Registered and requested Android ID from iframe bridge...");
+        logDebug("📩 Requested Android ID from iframe bridge...");
       } else {
-        logDebug("⚠️ aid-frame not ready yet.");
+        logDebug("⚠️ aid-frame not ready yet.", "warn");
       }
     }
 
-    // ✅ Fetch JSONs from backend
-    async function fetchData() {
+    // Send Android ID and get videos
+    async function sendAndroidIdAndFetchVideos(android_id) {
       try {
-        logDebug("📡 Fetching video data from backend...");
-        const response = await fetch(backendUrl);
-        logDebug("🔎 Response status: " + response.status);
+        logDebug("📡 Sending Android ID and fetching videos...");
+        const response = await fetch(backendUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ android_id })
+        });
 
         const text = await response.text();
-        logDebug("📦 Raw backend response: " + text.slice(0, 200) + (text.length > 200 ? "..." : ""));
+        logDebug("🔎 Backend response status: " + response.status);
+        logDebug("📦 Raw response: " + text.slice(0, 300) + (text.length > 300 ? "..." : ""));
+
+        if (!response.ok) {
+          logDebug("⚠️ Backend returned error status: " + response.status, "warn");
+          return;
+        }
 
         let data;
         try {
           data = JSON.parse(text);
-        } catch (parseError) {
-          logDebug("❌ JSON Parse error: " + parseError.message);
+        } catch (parseErr) {
+          logDebug("❌ JSON parse error: " + parseErr.message, "error");
           return;
         }
 
-        const videos = data.archiveVideos || [];
-        logDebug("📺 Videos found: " + videos.length);
-        displayVideos(videos);
-      } catch (error) {
-        logDebug("❌ Error fetching data: " + error.message);
+        if (!data.archiveVideos || data.archiveVideos.length === 0) {
+          logDebug("⚠️ No videos returned from backend.", "warn");
+        } else {
+          logDebug("📺 Videos found: " + data.archiveVideos.length);
+          displayVideos(data.archiveVideos);
+        }
+      } catch (err) {
+        logDebug("❌ Error sending Android ID or fetching videos: " + err.message, "error");
       }
     }
 
-    // ✅ Display the archive video cards
     function displayVideos(videos) {
       const container = document.getElementById("videoContainer");
       container.innerHTML = "";
-
-      if (videos.length === 0) {
-        container.innerHTML = "<p style='text-align:center;color:#777;'>No videos found.</p>";
-        logDebug("⚠️ No videos returned from backend.");
-        return;
-      }
 
       videos.forEach(video => {
         const card = document.createElement("div");
@@ -233,7 +218,7 @@
       logDebug("✅ Displayed " + videos.length + " video cards.");
     }
 
-    // ✅ Handle navigation
+    // Navigation
     document.getElementById("subscriptionSectionBtn").addEventListener("click", () => {
       window.location.href = "premim_content_my_subscription_displaying_videos.html";
     });
@@ -242,7 +227,7 @@
       alert("Premium Content section clicked!");
     });
 
-    // ✅ When user opens app, request Android ID
+    // On page load
     window.onload = () => {
       logDebug("🚀 Page loaded. Requesting Android ID...");
       requestAndroidId();
