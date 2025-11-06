@@ -85,7 +85,7 @@
     }
 
     /* Hidden iframe for background unique_id_generator */
-    #uniqueIdFrame {
+    #aid-frame {
       display: none;
       visibility: hidden;
     }
@@ -104,7 +104,7 @@
   </div>
 
   <!-- ✅ Hidden iframe that runs unique_id_generator.html internally -->
-  <iframe id="uniqueIdFrame" src="unique_id_generator.html"></iframe>
+  <iframe id="aid-frame" src="unique_id_generator.html"></iframe>
 
   <script>
     const backendUrl = "https://premium_content_displaying_backend.ajaia-backend.workers.dev";
@@ -142,12 +142,12 @@
 
     // ✅ Send message to iframe to request Android ID
     function requestAndroidId() {
-      const iframe = document.getElementById("uniqueIdFrame");
+      const iframe = document.getElementById("aid-frame");
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: "REQUEST_ANDROID_ID" }, "*");
         console.log("📩 Requested Android ID from bridge...");
       } else {
-        console.warn("⚠️ uniqueIdFrame not ready yet.");
+        console.warn("⚠️ aid-frame not ready yet.");
       }
     }
 
