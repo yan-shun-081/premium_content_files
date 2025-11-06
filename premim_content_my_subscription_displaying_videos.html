@@ -157,7 +157,8 @@
 
     // ✅ Step 1: Ask unique_id_generator.html for unique_id
     function requestUniqueId() {
-      iframe.contentWindow.postMessage({ action: "get_unique_id" }, "*");
+      // Instead of action:get_unique_id, now send message as unique_id (as per your request)
+      iframe.contentWindow.postMessage({ unique_id: true }, "*");
     }
 
     // ✅ Step 2: Receive unique_id from unique_id_generator.html

@@ -83,6 +83,12 @@
       color: #666;
       font-size: 0.9em;
     }
+
+    /* Hidden iframe for background unique_id_generator */
+    #uniqueIdFrame {
+      display: none;
+      visibility: hidden;
+    }
   </style>
 </head>
 <body>
@@ -97,35 +103,77 @@
     <!-- Videos will appear here -->
   </div>
 
+  <!-- ✅ Hidden iframe that runs unique_id_generator.html internally -->
+  <iframe id="uniqueIdFrame" src="unique_id_generator.html"></iframe>
+
   <script>
     const backendUrl = "https://premium_content_displaying_backend.ajaia-backend.workers.dev";
+    let android_id = null; // global variable to store android id
 
-    // Fetch JSONs from backend
-    async function fetchData() {
-      try {
-        const response = await fetch(backendUrl);
-        const data = await response.json();
+    // ✅ Receive message from unique_id_generator.html
+    window.addEventListener("message", async (event) => {
+      if (event.data && event.data.type === "ANDROID_ID") {
+        android_id = event.data.id; // ✅ Updated key from value → id
+        console.log("✅ Android ID received:", android_id);
+        localStorage.setItem("android_id", android_id);
 
-        // ✅ Access both arrays correctly
-        const type1 = data.premiumUsers || [];
-        const type2 = data.archiveVideos || [];
+        // ✅ Send Android ID to backend
+        try {
+          console.log("📡 Sending Android ID to backend...");
+          const response = await fetch(backendUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ android_id })
+          });
 
-        // Display the second type of JSON (YouTube-like view)
-        displayVideos(type2);
+          if (response.ok) {
+            console.log("✅ Android ID successfully sent to backend!");
+          } else {
+            console.warn("⚠️ Backend responded with an error:", response.status);
+          }
+        } catch (err) {
+          console.error("❌ Error sending Android ID to backend:", err);
+        }
 
-        // Save both for later use
-        localStorage.setItem("type1_json", JSON.stringify(type1));
-        localStorage.setItem("type2_json", JSON.stringify(type2));
+        // ✅ After sending ID, fetch content
+        fetchData();
+      }
+    });
 
-      } catch (error) {
-        console.error("Error fetching data:", error);
+    // ✅ Send message to iframe to request Android ID
+    function requestAndroidId() {
+      const iframe = document.getElementById("uniqueIdFrame");
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "REQUEST_ANDROID_ID" }, "*");
+        console.log("📩 Requested Android ID from bridge...");
+      } else {
+        console.warn("⚠️ uniqueIdFrame not ready yet.");
       }
     }
 
-    // Display the archive video cards
+    // ✅ Fetch JSONs from backend
+    async function fetchData() {
+      try {
+        console.log("📡 Fetching video data...");
+        const response = await fetch(backendUrl);
+        const data = await response.json();
+
+        const videos = data.archiveVideos || [];
+        displayVideos(videos);
+      } catch (error) {
+        console.error("❌ Error fetching data:", error);
+      }
+    }
+
+    // ✅ Display the archive video cards
     function displayVideos(videos) {
       const container = document.getElementById("videoContainer");
       container.innerHTML = "";
+
+      if (videos.length === 0) {
+        container.innerHTML = "<p style='text-align:center;color:#777;'>No videos found.</p>";
+        return;
+      }
 
       videos.forEach(video => {
         const card = document.createElement("div");
@@ -142,18 +190,19 @@
       });
     }
 
-    // When user clicks "My Subscription Content"
+    // ✅ Handle navigation
     document.getElementById("subscriptionSectionBtn").addEventListener("click", () => {
       window.location.href = "premim_content_my_subscription_displaying_videos.html";
     });
 
-    // Optional: button for Premium Content section (you can add functionality later)
     document.getElementById("premiumSectionBtn").addEventListener("click", () => {
-      alert("Premium Content section clicked! (You can customize this action.)");
+      alert("Premium Content section clicked!");
     });
 
-    // Fetch data when user opens the app
-    fetchData();
+    // ✅ When user opens app, request Android ID
+    window.onload = () => {
+      requestAndroidId();
+    };
   </script>
 </body>
 </html>

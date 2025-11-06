@@ -89,8 +89,8 @@
     <div id="response"></div>
   </div>
 
-  <!-- Hidden iframe for communication with unique_id_generator.html -->
-  <iframe id="uid-frame" src="unique_id_generator.html" style="display:none;"></iframe>
+  <!-- Hidden iframe for communication with android_id_generator.html -->
+  <iframe id="aid-frame" src="android_id_generator.html" style="display:none;"></iframe>
 
   <script>
     // ✅ Pay button → opens Razorpay page
@@ -124,24 +124,29 @@
         return;
       }
 
-      // Step 1: Ask unique_id_generator.html for unique_id
-      const iframe = document.getElementById("uid-frame");
-      iframe.contentWindow.postMessage({ action: "get_unique_id" }, "*");
+      const iframe = document.getElementById("aid-frame");
 
-      // Step 2: Wait for unique_id response
+      // ✅ Step 1: Register this page as a client to the Android ID bridge
+      iframe.contentWindow.postMessage({ type: "REGISTER_ANDROID_BRIDGE" }, "*");
+
+      // ✅ Step 2: Request the Android ID from the bridge
+      iframe.contentWindow.postMessage({ type: "REQUEST_ANDROID_ID" }, "*");
+
+      // ✅ Step 3: Wait for bridge to send back Android ID
       window.addEventListener("message", async function handleMessage(event) {
-        if (event.data && event.data.unique_id) {
-          const unique_id = event.data.unique_id;
+        if (!event.data || typeof event.data.type !== "string") return;
+
+        if (event.data.type === "ANDROID_ID") {
+          const android_id = event.data.id;
           window.removeEventListener("message", handleMessage);
 
-          // Step 3: Send metadata to backend
           const metadata = {
             full_name,
             email,
             phone_number,
             payment_id,
             content_id,
-            unique_id
+            android_id
           };
 
           try {
