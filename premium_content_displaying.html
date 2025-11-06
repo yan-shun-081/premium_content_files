@@ -89,6 +89,17 @@
       display: none;
       visibility: hidden;
     }
+
+    /* Debug Panel */
+    #debugPanel {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      padding: 10px;
+      font-size: 0.9em;
+      height: 150px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -98,6 +109,9 @@
     <button id="premiumSectionBtn">Premium Content</button>
     <button id="subscriptionSectionBtn">My Subscription Content</button>
   </div>
+
+  <!-- ✅ Debug info panel -->
+  <div id="debugPanel">[Debug Log Started]</div>
 
   <div id="videoContainer" class="video-list">
     <!-- Videos will appear here -->
@@ -110,16 +124,25 @@
     const backendUrl = "https://premium_content_displaying_backend.ajaia-backend.workers.dev";
     let android_id = null; // global variable to store android id
 
+    const debugPanel = document.getElementById("debugPanel");
+    function logDebug(message) {
+      console.log(message);
+      const line = document.createElement("div");
+      line.textContent = message;
+      debugPanel.appendChild(line);
+      debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+
     // ✅ Receive message from unique_id_generator.html
     window.addEventListener("message", async (event) => {
       if (event.data && event.data.type === "ANDROID_ID") {
-        android_id = event.data.id; // ✅ Updated key from value → id
-        console.log("✅ Android ID received:", android_id);
+        android_id = event.data.id;
+        logDebug("✅ Android ID received: " + android_id);
         localStorage.setItem("android_id", android_id);
 
         // ✅ Send Android ID to backend
         try {
-          console.log("📡 Sending Android ID to backend...");
+          logDebug("📡 Sending Android ID to backend...");
           const response = await fetch(backendUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -127,16 +150,18 @@
           });
 
           if (response.ok) {
-            console.log("✅ Android ID successfully sent to backend!");
+            logDebug("✅ Android ID successfully sent to backend!");
           } else {
-            console.warn("⚠️ Backend responded with an error:", response.status);
+            logDebug("⚠️ Backend responded with error status: " + response.status);
           }
         } catch (err) {
-          console.error("❌ Error sending Android ID to backend:", err);
+          logDebug("❌ Error sending Android ID to backend: " + err.message);
         }
 
         // ✅ After sending ID, fetch content
         fetchData();
+      } else {
+        logDebug("⚠️ No ANDROID_ID message received or wrong data format.");
       }
     });
 
@@ -145,23 +170,35 @@
       const iframe = document.getElementById("aid-frame");
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: "REQUEST_ANDROID_ID" }, "*");
-        console.log("📩 Requested Android ID from bridge...");
+        logDebug("📩 Requested Android ID from iframe bridge...");
       } else {
-        console.warn("⚠️ aid-frame not ready yet.");
+        logDebug("⚠️ aid-frame not ready yet.");
       }
     }
 
     // ✅ Fetch JSONs from backend
     async function fetchData() {
       try {
-        console.log("📡 Fetching video data...");
+        logDebug("📡 Fetching video data from backend...");
         const response = await fetch(backendUrl);
-        const data = await response.json();
+        logDebug("🔎 Response status: " + response.status);
+
+        const text = await response.text();
+        logDebug("📦 Raw backend response: " + text.slice(0, 200) + (text.length > 200 ? "..." : ""));
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          logDebug("❌ JSON Parse error: " + parseError.message);
+          return;
+        }
 
         const videos = data.archiveVideos || [];
+        logDebug("📺 Videos found: " + videos.length);
         displayVideos(videos);
       } catch (error) {
-        console.error("❌ Error fetching data:", error);
+        logDebug("❌ Error fetching data: " + error.message);
       }
     }
 
@@ -172,6 +209,7 @@
 
       if (videos.length === 0) {
         container.innerHTML = "<p style='text-align:center;color:#777;'>No videos found.</p>";
+        logDebug("⚠️ No videos returned from backend.");
         return;
       }
 
@@ -188,6 +226,8 @@
         `;
         container.appendChild(card);
       });
+
+      logDebug("✅ Displayed " + videos.length + " video cards.");
     }
 
     // ✅ Handle navigation
@@ -201,6 +241,7 @@
 
     // ✅ When user opens app, request Android ID
     window.onload = () => {
+      logDebug("🚀 Page loaded. Requesting Android ID...");
       requestAndroidId();
     };
   </script>
