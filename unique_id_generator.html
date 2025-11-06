@@ -3,32 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Android ID Bridge (Parent)</title>
-  <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;padding:18px}</style>
+  <title>Unique ID Generator (Bridge)</title>
+  <style>
+    body {
+      font-family: system-ui, Segoe UI, Roboto, Arial;
+      padding: 18px;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    h2 {
+      margin-bottom: 10px;
+      color: #38bdf8;
+    }
+    #status {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
-  <h2>Android ID Bridge (Parent)</h2>
+  <h2>Unique ID Bridge (Parent)</h2>
   <p id="status">Android ID: <em id="aid">not set</em></p>
 
-  <!-- Example children -->
-  <iframe src="child.html" id="frame1" style="width:100%;height:120px;border:1px solid #ccc;margin-top:10px"></iframe>
-  <iframe src="child.html" id="frame2" style="width:100%;height:120px;border:1px solid #ccc;margin-top:10px"></iframe>
-
   <script>
-    (function(){
+    (function () {
       // Store android id here when native sets it
       let androidId = null;
 
-      // Registry of connected clients. Each entry: { source, origin, lastSeen }
+      // Registry of connected clients. Each entry: { source, origin }
       const clients = new Set();
 
       // Helper to send message safely to a client entry
       function sendToClient(client, message) {
         try {
-          // You may want to restrict client.origin to a specific origin string
           client.source.postMessage(message, client.origin || '*');
         } catch (e) {
-          // ignore dead frames
           console.warn('Failed to postMessage to client', e);
         }
       }
@@ -38,74 +48,71 @@
         clients.forEach(client => sendToClient(client, message));
       }
 
-      // Public function native can call: window.setAndroidId('...') or native injects this call
-      window.setAndroidId = function(id) {
+      // Public function native can call: window.setAndroidId('...')
+      window.setAndroidId = function (id) {
         androidId = id || null;
         document.getElementById('aid').textContent = androidId || 'null';
-
-        // Immediately inform all registered clients that Android ID is available/updated
         broadcast({ type: 'ANDROID_ID', id: androidId });
       };
 
-      // Listen for messages from children or other windows
-      window.addEventListener('message', function(event) {
-        // event.origin may be "null" for file:// — consider that when using mobile WebView.
-        // For security, if you know origins, check event.origin here:
-        // if (event.origin !== 'https://your.trusted.origin') return;
+      // Listen for messages from children (portal or others)
+      window.addEventListener(
+        'message',
+        function (event) {
+          const data = event.data;
+          if (!data || typeof data.type !== 'string') return;
 
-        const data = event.data;
-        if (!data || typeof data.type !== 'string') return;
+          switch (data.type) {
+            // Child registers itself
+            case 'REGISTER_ANDROID_BRIDGE': {
+              const client = { source: event.source, origin: event.origin };
+              let exists = false;
+              clients.forEach(c => {
+                if (c.source === event.source) exists = true;
+              });
+              if (!exists) clients.add(client);
 
-        switch (data.type) {
-          // Child tells parent "I'm connected"
-          case 'REGISTER_ANDROID_BRIDGE': {
-            // Keep record of the source and origin
-            // Use a simple object as the Set element
-            const client = { source: event.source, origin: event.origin };
-            // avoid duplicates (simple check: same source)
-            let exists = false;
-            clients.forEach(c => { if (c.source === event.source) exists = true; });
-            if (!exists) {
-              clients.add(client);
+              // Acknowledge registration
+              sendToClient(client, { type: 'BRIDGE_REGISTERED', ok: true });
+
+              // If Android ID is already available, send immediately
+              if (androidId !== null) {
+                sendToClient(client, { type: 'ANDROID_ID', id: androidId });
+              }
+              break;
             }
-            // reply with acknowledgement and current id (if present)
-            sendToClient(client, { type: 'BRIDGE_REGISTERED', ok: true });
-            if (androidId !== null) {
-              sendToClient(client, { type: 'ANDROID_ID', id: androidId });
+
+            // Child requests Android ID
+            case 'REQUEST_ANDROID_ID': {
+              broadcast({ type: 'ANDROID_ID', id: androidId });
+              break;
             }
-            break;
-          }
 
-          // Any client requests the Android ID
-          case 'REQUEST_ANDROID_ID': {
-            // When any child requests, broadcast android id to all registered children
-            broadcast({ type: 'ANDROID_ID', id: androidId });
-            break;
-          }
-
-          // Optional: children can unregister
-          case 'UNREGISTER_ANDROID_BRIDGE': {
-            // remove all entries with event.source
-            for (let c of Array.from(clients)) {
-              if (c.source === event.source) clients.delete(c);
+            // Optional: child unregisters
+            case 'UNREGISTER_ANDROID_BRIDGE': {
+              for (let c of Array.from(clients)) {
+                if (c.source === event.source) clients.delete(c);
+              }
+              break;
             }
-            break;
+
+            default:
+              break;
           }
+        },
+        false
+      );
 
-          default:
-            // ignore other types
-            break;
-        }
-      }, false);
-
-      // For debugging: expose a function to list clients
-      window._listBridgeClients = function() {
-        return Array.from(clients).map(c => ({ origin: c.origin, hasSource: !!c.source }));
+      // Debug: list clients in console
+      window._listBridgeClients = function () {
+        return Array.from(clients).map(c => ({
+          origin: c.origin,
+          hasSource: !!c.source,
+        }));
       };
 
-      // Example: If native cannot call setAndroidId directly, native can evaluate this:
+      // Example: native can call
       // webView.evaluateJavascript("window.setAndroidId('ANDROID12345')", null);
-      // Or use addJavascriptInterface to call a JS function from Java/Kotlin.
     })();
   </script>
 </body>
