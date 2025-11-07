@@ -1,0 +1,11 @@
+title: Web Development Basics
+content_id: VID001
+username: DevMaster
+archive_url: https://example.com/videos/web_basics.mp4
+description: Learn HTML, CSS, and JavaScript fundamentals in this beginner-friendly video.
+
+title: Advanced AI Concepts
+content_id: VID002
+username: AI_Pro
+archive_url: https://example.com/videos/ai_advanced.mp4
+description: Understand deep learning and neural networks like never before.
